@@ -28,6 +28,7 @@ class ChatServer:
         try:
             # ヘッダを受信（32バイト）
             header = client_sock.recv(32)
+
             if not header:
                 return
 
@@ -49,7 +50,7 @@ class ChatServer:
 
             # ルーム作成
             if operation == 1 and state == 0:
-                # ステート1の応答を送信(オペレーションコード、ステート)
+                # ステート1の応答を送信(操作コード、状態コード)
                 response = struct.pack('!B B', 1, 1)
                 client_sock.send(response)
 
@@ -67,7 +68,7 @@ class ChatServer:
 
             # ルーム参加
             elif operation == 2 and state == 0:
-                # ステート1の応答を送信(オペレーションコード、ステート)
+                # ステート1の応答を送信(操作コード、状態コード)
                 response = struct.pack('!B B', 2, 1)
                 client_sock.send(response)
 
@@ -80,6 +81,19 @@ class ChatServer:
                 # 部屋の参加者を更新
                 self.rooms[room_name]['participants'].add(addr)
                 self.clients[client_token] = addr
+                
+                # # 部屋が存在しないときは通知する(新たなステータスコードが必要？)
+                # if room_name in self.rooms.keys():
+                #     self.rooms[room_name]['participants'].add(addr)
+                #     response = struct.pack('!B B 255s', 2, 2, client_token.encode('utf-8'))
+                #     client_sock.send(response)
+                #     print(f"{user_name} joined room: '{room_name}' with token: {client_token}")
+                # else:
+                #     # The room does not exist
+                #     print(f"Failed to join: Room '{room_name}' does not exist.")
+                #     response = struct.pack('!B B', 2, 0)  # Operation 2, state 0 indicating failure
+                #     client_sock.send(response)
+                #     print(f"{user_name} attempt to join room: '{room_name}' , but the room not found.")
 
                 print(self.rooms)
 
@@ -101,12 +115,16 @@ class ChatServer:
             print(room_name, client_token, message)
             print(self.clients)
 
-            if self.clients.get(client_token) == addr:
-                print('start broadcast')
-                print(addr)
-                for participant in self.rooms[room_name]['participants']:
-                    if participant != addr:
-                        self.udp_sock.sendto(data, participant)
+            client_tcp_addr = self.clients[client_token]
+
+            
+            for participant in self.rooms[room_name]['participants']:
+                
+                print('in for loop', client_tcp_addr, participant)
+                if not (participant == client_tcp_addr):
+                    print('in if statement', client_tcp_addr, participant)
+                    self.udp_sock.sendto(message, participant)
+
 
 
 if __name__ == "__main__":
