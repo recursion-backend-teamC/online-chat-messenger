@@ -9,6 +9,8 @@ class ChatClient:
         self.udp_port = udp_port
         self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # self.udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # self.udp_sock.bind((self.host, self.udp_port))  # UDPソケットをバインドする
         self.token = ''
         self.user_name = ''
         self.room_name = ''
@@ -34,6 +36,7 @@ class ChatClient:
             self.chat()
 
     def create_room(self, room_name, operation_payload):
+
         room_name_bytes = room_name.encode('utf-8')
         operation_payload_bytes = operation_payload.encode('utf-8')
 
@@ -42,7 +45,7 @@ class ChatClient:
         self.tcp_sock.sendall(header + body)
 
         # ステート1の応答を待機
-        response = self.tcp_sock.recv(3)
+        response = self.tcp_sock.recv(2)
         operation, state = struct.unpack('!B B', response)
         if operation == 1 and state == 1:
             print("Server acknowledged the room creation request.")
@@ -70,7 +73,7 @@ class ChatClient:
         self.tcp_sock.sendall(header + body)
 
         # ステート1の応答を待機
-        response = self.tcp_sock.recv(3)
+        response = self.tcp_sock.recv(2)
         operation, state = struct.unpack('!B B', response)
         if operation == 2 and state == 1:
             print("Server acknowledged the room creation request.")
