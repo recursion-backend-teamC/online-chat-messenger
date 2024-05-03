@@ -15,22 +15,17 @@ class ChatClient:
         self.user_name = ''
         self.room_name = ''
 
-        # 0番は、空いているポートが自動的に割り振られる
-        # self.udp_sock.bind((self.host, 0))
-
         print(self.local_ip)
         
         # TCPソケットとUDPソケットをローカルIPアドレスにバインド
-        # self.tcp_sock.bind((self.local_ip, 0))
+        # 0番は、空いているポートが自動的に割り振られる
+        self.tcp_sock.bind((self.local_ip, 0))
         self.udp_sock.bind((self.local_ip, 0))
+        
 
 
     def generate_random_loopback_ip(self):
-        # 127.0.0.1 から 127.255.255.254 までのランダムなループバックIPを生成
-        # ip_num = random.randint(0x7F000001, 0x7FFFFFFE)
-        # ip_addr = socket.inet_ntoa(struct.pack('>I', ip_num))
-        # return ip_addr
-
+        # 127.0.0.1 から 127.0.0.255 までのランダムなループバックIPを生成
         return '127.0.0.' + str(random.randint(1, 255))
 
 
@@ -70,7 +65,8 @@ class ChatClient:
         body = room_name_bytes + operation_payload_bytes
         self.tcp_sock.sendall(header + body)
 
-        print('udp sock is: ', self.udp_sock.getsockname())
+        # print('in create tcp sock is: ', self.tcp_sock.getsockname())
+        # print('in create udp sock is: ', self.udp_sock.getsockname())
 
         # ステート1の応答を待機
         response = self.tcp_sock.recv(2)
@@ -100,7 +96,7 @@ class ChatClient:
         body = room_name_bytes + operation_payload_bytes
         self.tcp_sock.sendall(header + body)
 
-        print('udp sock is: ', self.udp_sock.getsockname())
+        # print('udp sock is: ', self.udp_sock.getsockname())
 
 
         # ステート1の応答を待機
@@ -124,7 +120,15 @@ class ChatClient:
 
     def chat(self):
         print("You can start chatting now. Type 'exit' to leave chat.")
-        print('udp sock is: ', self.udp_sock.getsockname())
+        # print('udp sock is: ', self.udp_sock.getsockname())
+
+        # UDP接続が開始したら、1度だけUDPアドレスを送る(メッセージは空文字)
+        room_name_bytes = self.room_name.encode('utf-8')
+        token_bytes = self.token.encode('utf-8')
+        header = struct.pack('!B B', len(room_name_bytes), len(token_bytes))
+        body = room_name_bytes + token_bytes
+        packet = header + body
+        self.udp_sock.sendto(packet, (self.host, self.udp_port))
 
 
         while True:
@@ -142,13 +146,25 @@ class ChatClient:
         header = struct.pack('!B B', len(room_name_bytes), len(token_bytes))
         body = room_name_bytes + token_bytes + message_bytes
         packet = header + body
-
         self.udp_sock.sendto(packet, (self.host, self.udp_port))
 
     def receive_messages(self):
         while True:
             data, _ = self.udp_sock.recvfrom(4096)
-            print("Received message:", data.decode('utf-8'))
+            # ヘッダー
+            room_name_size, user_name_size = struct.unpack('!B B', data[:2])
+            # ボディ
+            user_name = data[2:2 + room_name_size].decode()
+            message = data[2 + room_name_size : 1 + user_name_size:].decode()
+
+            room_name = data[2:2 + room_name_size].decode('utf-8')
+            user_name = data[2 + room_name_size:2 + room_name_size + user_name_size].decode('utf-8')
+            message = data[2 + room_name_size + user_name_size:].decode()
+
+            print(f"{user_name} : {message} in {room_name}")
+
+
+            
         
 
 
