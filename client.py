@@ -1,48 +1,76 @@
 import socket
 import struct
 import threading
+import random
 
 class ChatClient:
     def __init__(self, host, tcp_port, udp_port):
         self.host = host
         self.tcp_port = tcp_port
         self.udp_port = udp_port
+        self.local_ip = self.generate_random_loopback_ip()  # ランダムなループバックIPを生成
         self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # self.udp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # self.udp_sock.bind((self.host, self.udp_port))  # UDPソケットをバインドする
         self.token = ''
         self.user_name = ''
         self.room_name = ''
 
+        # 0番は、空いているポートが自動的に割り振られる
+        # self.udp_sock.bind((self.host, 0))
+
+        print(self.local_ip)
+        
+        # TCPソケットとUDPソケットをローカルIPアドレスにバインド
+        # self.tcp_sock.bind((self.local_ip, 0))
+        self.udp_sock.bind((self.local_ip, 0))
+
+
+    def generate_random_loopback_ip(self):
+        # 127.0.0.1 から 127.255.255.254 までのランダムなループバックIPを生成
+        # ip_num = random.randint(0x7F000001, 0x7FFFFFFE)
+        # ip_addr = socket.inet_ntoa(struct.pack('>I', ip_num))
+        # return ip_addr
+
+        return '127.0.0.' + str(random.randint(1, 255))
+
+
 
     def start(self):
-        self.tcp_sock.connect((self.host, self.tcp_port))
-        print("Connected to server")
-        threading.Thread(target=self.receive_messages).start()
+        try:
+            self.tcp_sock.connect((self.host, self.tcp_port))
+            print("Connected to server")
+            threading.Thread(target=self.receive_messages).start()
 
-        while True:
-            self.user_name =  input("Enter your name: ")
-            choice = input("Enter 'create' to create a new room or 'join' to join an existing room: ")
-            self.room_name = input("Enter room name: ")
+            while True:
+                self.user_name =  input("Enter your name: ")
+                choice = input("Enter 'create' to create a new room or 'join' to join an existing room: ")
 
-            if choice.lower() == 'create':
-                # self.send_tcp_request(1, self.room_name)
-                self.create_room(self.room_name, self.user_name)
-            elif choice.lower() == 'join':
-                # self.send_tcp_request(2, self.room_name)
-                self.join_room(self.room_name, 2, self.user_name)
+                if choice.lower() == 'create':
+                    self.room_name = input("Enter room name: ")
+                    self.create_room(self.room_name, self.user_name)
+                elif choice.lower() == 'join':
+                    self.room_name = input("Enter room name: ")
+                    self.join_room(self.room_name, 2, self.user_name)
 
-            self.chat()
+                self.chat()
+
+        except KeyboardInterrupt:
+            self.shutdown()
+
+    def shutdown(self):
+        print("Disconnecting from server...")
+        self.tcp_sock.close()
+        self.udp_sock.close()
 
     def create_room(self, room_name, operation_payload):
-
         room_name_bytes = room_name.encode('utf-8')
         operation_payload_bytes = operation_payload.encode('utf-8')
 
         header = struct.pack('!B B B 29s', len(room_name_bytes), 1, 0, len(operation_payload_bytes).to_bytes(29, byteorder='big'))
         body = room_name_bytes + operation_payload_bytes
         self.tcp_sock.sendall(header + body)
+
+        print('udp sock is: ', self.udp_sock.getsockname())
 
         # ステート1の応答を待機
         response = self.tcp_sock.recv(2)
@@ -72,6 +100,9 @@ class ChatClient:
         body = room_name_bytes + operation_payload_bytes
         self.tcp_sock.sendall(header + body)
 
+        print('udp sock is: ', self.udp_sock.getsockname())
+
+
         # ステート1の応答を待機
         response = self.tcp_sock.recv(2)
         operation, state = struct.unpack('!B B', response)
@@ -93,18 +124,25 @@ class ChatClient:
 
     def chat(self):
         print("You can start chatting now. Type 'exit' to leave chat.")
+        print('udp sock is: ', self.udp_sock.getsockname())
+
+
         while True:
             message = input("> ")
             if message.lower() == 'exit':
                 break
+                
             self.send_message(message)
 
     def send_message(self, message):
-        message_encoded = message.encode('utf-8')
-        room_name_encoded = self.room_name.encode('utf-8')
-        token_encoded = self.token.encode('utf-8')
-        header = struct.pack('!B B', len(room_name_encoded), len(token_encoded))
-        packet = header + room_name_encoded + token_encoded + message_encoded
+        room_name_bytes = self.room_name.encode('utf-8')
+        token_bytes = self.token.encode('utf-8')
+        message_bytes = message.encode('utf-8')
+
+        header = struct.pack('!B B', len(room_name_bytes), len(token_bytes))
+        body = room_name_bytes + token_bytes + message_bytes
+        packet = header + body
+
         self.udp_sock.sendto(packet, (self.host, self.udp_port))
 
     def receive_messages(self):

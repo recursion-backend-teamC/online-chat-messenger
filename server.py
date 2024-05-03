@@ -9,7 +9,8 @@ class ChatServer:
         self.tcp_port = tcp_port
         self.udp_port = udp_port
         self.rooms = {}  # key: room_name, value: {'host_client_token': token, 'participants': set()}
-        self.clients = {}  # key: client_token, value: addr
+        self.clients = {}  # key: client_token, value: {'tcp': tcp_addr, 'udp': udp_addr}
+        self.clients_udp = {}
         self.tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.udp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.tcp_sock.bind((self.host, self.tcp_port))
@@ -19,16 +20,23 @@ class ChatServer:
         threading.Thread(target=self.listen_udp).start()
 
     def start(self):
-        while True:
-            client_sock, addr = self.tcp_sock.accept()
-            threading.Thread(target=self.handle_client, args=(client_sock, addr)).start()
-            
+        try:
+            while True:
+                client_sock, addr = self.tcp_sock.accept()
+                threading.Thread(target=self.handle_client, args=(client_sock, addr)).start()
+        except KeyboardInterrupt:
+            self.shutdown()
+
+    def shutdown(self):
+        print("Shutting down the server...")
+        self.tcp_sock.close()
+        self.udp_sock.close()
+
 
     def handle_client(self, client_sock, addr):
         try:
             # ヘッダを受信（32バイト）
             header = client_sock.recv(32)
-
             if not header:
                 return
 
@@ -61,10 +69,9 @@ class ChatServer:
                 print(f"{user_name} created room: '{room_name}' with token: {client_token}")
 
                 # 部屋のホストと参加者を記録
-                self.rooms[room_name] = {'host_client_token': client_token, 'participants': set([addr])}
-                self.clients[client_token] = addr
-
-                print('rooms are:', self.rooms)
+                self.rooms[room_name] = {'host_client_token': client_token, 'participants': set([client_token])}
+                self.clients[client_token] = {'tcp': addr, 'udp': None}
+                # self.clients[client_token]['tcp'] = addr
 
             # ルーム参加
             elif operation == 2 and state == 0:
@@ -79,29 +86,21 @@ class ChatServer:
                 print(f"{user_name} joined room: '{room_name}' with token: {client_token}")
 
                 # 部屋の参加者を更新
-                self.rooms[room_name]['participants'].add(addr)
-                self.clients[client_token] = addr
+                self.rooms[room_name]['participants'].add(client_token)
+                self.clients[client_token] = {'tcp': addr, 'udp': None}
+                # self.clients[client_token]['tcp'] = addr
                 
-                # # 部屋が存在しないときは通知する(新たなステータスコードが必要？)
-                # if room_name in self.rooms.keys():
-                #     self.rooms[room_name]['participants'].add(addr)
-                #     response = struct.pack('!B B 255s', 2, 2, client_token.encode('utf-8'))
-                #     client_sock.send(response)
-                #     print(f"{user_name} joined room: '{room_name}' with token: {client_token}")
-                # else:
-                #     # The room does not exist
-                #     print(f"Failed to join: Room '{room_name}' does not exist.")
-                #     response = struct.pack('!B B', 2, 0)  # Operation 2, state 0 indicating failure
-                #     client_sock.send(response)
-                #     print(f"{user_name} attempt to join room: '{room_name}' , but the room not found.")
 
-                print(self.rooms)
+            print('rooms are:', self.rooms)
+            print('clients are:', self.clients)
 
         except Exception as e:
             print(f"Error handling client {addr}: {e}")
         finally:
             client_sock.close()
 
+
+    # udpアドレスもclientsに格納する必要あり
     def listen_udp(self):
         while True:
             data, addr = self.udp_sock.recvfrom(4096)
@@ -110,20 +109,30 @@ class ChatServer:
             # ボディ
             room_name = data[2:2 + room_name_size].decode('utf-8')
             client_token = data[2 + room_name_size:2 + room_name_size + token_size].decode('utf-8')
-            message = data[2 + room_name_size + token_size:]
+            message = data[2 + room_name_size + token_size:].decode()
 
             print(room_name, client_token, message)
             print(self.clients)
 
-            client_tcp_addr = self.clients[client_token]
 
-            
-            for participant in self.rooms[room_name]['participants']:
-                
-                print('in for loop', client_tcp_addr, participant)
-                if not (participant == client_tcp_addr):
-                    print('in if statement', client_tcp_addr, participant)
-                    self.udp_sock.sendto(message, participant)
+            if not self.clients_udp.get(client_token):
+                # [client_token]['udp'] == None:
+                self.clients[client_token]['udp'] = addr
+
+            # print(room_name, client_token, message)
+            # print(addr)
+            # print(self.clients[client_token])
+
+            print('message received', room_name, client_token, message)
+            # client_tcp_addr = self.clients[client_token]['tcp']
+
+            # broadcast
+            for token in self.rooms[room_name]['participants']:
+                print('start broadcast')
+                # print('in for loop', client_tcp_addr, participant)
+                if not (token == client_token):
+                    print('in if statement', self.clients[token]['udp'])
+                    self.udp_sock.sendto(data, self.clients[token]['udp'])
 
 
 
