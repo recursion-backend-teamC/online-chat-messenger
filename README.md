@@ -7,7 +7,10 @@ sh set_loopback.sh
 
 
 2. プログラムを実行(それぞれ別のターミナルで)  
-ターミナル1: python3 server.py (サーバーを実行)  
-ターミナル2: python3 client.py (1人目のクライアントを実行)  
-ターミナル3: python3 client.py (1人目のクライアントを実行)  
+ターミナル1: サーバーを起動  
+python3 server.py (サーバーを実行)  
+ターミナル2: 1人目のクライアントを起動  
+python3 client.py  
+ターミナル3: 2人目のクライアントを起動  
+python3 client.py  
 
