@@ -1,9 +1,12 @@
 import socket
 import struct
 import threading
+import uuid
+import time
+
 
 class ChatClient:
-    def __init__(self, host, tcp_port, udp_port):
+    def __init__(self, host, tcp_port, udp_port, timeout_seconds=60):
         self.host = host
         self.tcp_port = tcp_port
         self.udp_port = udp_port
@@ -15,6 +18,8 @@ class ChatClient:
         self.user_name = ''
         self.room_name = ''
 
+        self.last_activity_time = time.time()
+        self.timeout_seconds = timeout_seconds
 
     def start(self):
         self.tcp_sock.connect((self.host, self.tcp_port))
