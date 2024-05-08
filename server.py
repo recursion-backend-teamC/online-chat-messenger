@@ -93,6 +93,7 @@ class ChatServer:
         except Exception as e:
             print(f"Error handling client {addr}: {e}")
         finally:
+            # クライアントとのTCP接続を切る
             client_sock.close()
 
 
@@ -130,4 +131,4 @@ if __name__ == "__main__":
     TCP_PORT = 9998
     UDP_PORT = 9999
     server = ChatServer(HOST, TCP_PORT, UDP_PORT)
-    # server.start()
+    server.start()
