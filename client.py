@@ -36,18 +36,20 @@ class ChatClient:
             print("Connected to server")
             threading.Thread(target=self.receive_messages).start()
 
-            while True:
-                self.user_name =  input("Enter your name: ")
-                choice = input("Enter 'create' to create a new room or 'join' to join an existing room: ")
+            self.user_name =  input("Enter your name: ")
+            choice = input("Enter 'create' to create a new room or 'join' to join an existing room: ")
 
-                if choice.lower() == 'create':
-                    self.room_name = input("Enter room name: ")
-                    self.create_room(self.room_name, self.user_name)
-                elif choice.lower() == 'join':
-                    self.room_name = input("Enter room name: ")
-                    self.join_room(self.room_name, 2, self.user_name)
+            if choice.lower() == 'create':
+                self.room_name = input("Enter room name: ")
+                self.create_room(self.room_name, self.user_name)
+            elif choice.lower() == 'join':
+                self.room_name = input("Enter room name: ")
+                self.join_room(self.room_name, 2, self.user_name)
 
-                self.chat()
+            # 部屋を作成or参加したら、TCP接続を切る
+            self.tcp_sock.close()
+
+            self.chat()
 
         except KeyboardInterrupt:
             self.shutdown()
