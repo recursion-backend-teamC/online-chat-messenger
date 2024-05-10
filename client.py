@@ -141,6 +141,7 @@ class ChatClient:
         while True:
             message = input("> ")
             if message.lower() == 'exit':
+                self.send_message(message)
                 break
                 
             self.send_message(message)

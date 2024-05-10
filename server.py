@@ -5,7 +5,7 @@ import uuid
 import time
 
 class ChatServer:
-    def __init__(self, host, tcp_port, udp_port, timeout_seconds=5):
+    def __init__(self, host, tcp_port, udp_port, timeout_seconds=1000):
         self.host = host
         self.tcp_port = tcp_port
         self.udp_port = udp_port
@@ -61,9 +61,7 @@ class ChatServer:
             room_name = room_name_bytes.decode('utf-8')
             user_name = operation_payload_bytes.decode('utf-8')
 
-            client_token = self.clients.get(client_sock)
-            if client_token:
-                self.clients[client_token] = (addr, last_activity_time)
+
 
             # 操作に基づいた処理
             print(f"Received room name: {room_name}")
@@ -142,6 +140,12 @@ class ChatServer:
                 last_activity_time = time.time()
                 print(f'message received from {self.client_names[client_token]} in {room_name}. message is', message)
 
+                print("aaa", self.rooms[room_name]['host_client_token'])
+                # ホストからの 'exit' メッセージの場合、他のユーザーも強制退出
+                if message == "exit" and self.rooms[room_name]['host_client_token'] == client_token:
+                    self.dissolve_room(room_name)
+                    continue
+
                 room_name_bytes = room_name.encode()
                 user_name = self.client_names[client_token]
                 user_name_bytes = user_name.encode()
@@ -153,6 +157,26 @@ class ChatServer:
 
                 for token in self.rooms[room_name]['participants']:
                     self.udp_sock.sendto(packet, self.clients_udp[token])
+
+    def dissolve_room(self, room_name):
+        """部屋を解散させ、すべての参加者に切断を通知します。"""
+        # 指定された部屋名をキーにして部屋情報を取得し、その部屋を辞書から削除します。
+        room_info = self.rooms.pop(room_name, None)
+        if room_info:
+            message = "DISCONNECT".encode('utf-8')
+            # 部屋の参加者全員にDISCONNECTメッセージを送信します。
+            for participant in room_info['participants']:
+                participant_addr = self.clients_udp.get(participant)
+                if participant_addr:
+                    # 各参加者のUDPアドレスに切断メッセージを送信します。
+                    self.udp_sock.sendto(message, participant_addr)
+                # 参加者のTCPクライアント情報、UDPアドレス情報、名前情報を削除します。
+                self.clients.pop(participant, None)  # クライアント情報から削除
+                self.clients_udp.pop(participant, None)  # UDPアドレス情報から削除
+                self.client_names.pop(participant, None)  # 名前情報から削除
+            # 部屋の解散とすべての参加者の切断が完了したことをログに出力します。
+            print(f"部屋 '{room_name}' が解散され、すべての参加者が切断されました。")
+
                     
     def check_timeout(self):
         print("チェックタイムアウトメソッド動いた")
@@ -161,13 +185,13 @@ class ChatServer:
             current_time = time.time()
             # Remove timed out clients
             for client_token, (addr, last_activity_time) in list(self.clients.items()):
-                print("forのなか")
-                print(current_time, last_activity_time, self.timeout_seconds)
-                print("Checking timeout for client:", client_token)
-                print("Current time:", current_time)
-                print("Last activity time:", last_activity_time)
-                print("Difference:", current_time - last_activity_time)
-                print("Timeout threshold:", self.timeout_seconds)
+                # print("forのなか")
+                # print(current_time, last_activity_time, self.timeout_seconds)
+                # print("Checking timeout for client:", client_token)
+                # print("Current time:", current_time)
+                # print("Last activity time:", last_activity_time)
+                # print("Difference:", current_time - last_activity_time)
+                # print("Timeout threshold:", self.timeout_seconds)
                 if current_time - last_activity_time > self.timeout_seconds:
                     print(f"Client {client_token} timed out.")
                     self.remove_client(client_token)  # Call remove_client to handle cleanup
