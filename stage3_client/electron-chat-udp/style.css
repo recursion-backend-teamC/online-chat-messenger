@@ -1,0 +1,49 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column; /* 画面全体をフレックスコンテナに設定 */
+}
+
+#chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* コンテナを全高に設定 */
+}
+
+#messages {
+    flex-grow: 1; /* メッセージエリアを可変領域として設定 */
+    overflow-y: auto; /* スクロール可能に */
+    padding: 10px;
+    display: flex;
+    flex-direction: column-reverse; /* メッセージを下から上に表示 */
+}
+
+.message {
+    margin-bottom: 10px;
+}
+
+#input-container {
+    margin: 20px;
+}
+
+#input-area {
+    display: flex; /* 入力エリアをフレックスボックスに */
+    padding: 10px;
+    background-color: #f2f2f2;
+    border-top: 1px solid #ccc;
+}
+
+#input-area input[type="text"] {
+    flex-grow: 1; /* テキスト入力を広げる */
+    margin-right: 10px;
+    padding: 10px;
+    font-size: 16px;
+}
+
+#input-area button {
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+}

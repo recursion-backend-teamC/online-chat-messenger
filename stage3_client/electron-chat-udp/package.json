@@ -1,0 +1,14 @@
+{
+  "name": "electron-chat-udp",
+  "version": "1.0.0",
+  "main": "main.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "dgram": "^1.0.1",
+    "electron": "^30.0.3"
+  },
+  "dependencies": {}
+}
