@@ -102,6 +102,7 @@ class ChatServer:
             print(f"Error handling client {addr}: {e}")
         finally:
             client_sock.close()
+            # pass
 
 
     # udpアドレスもclientsに格納する必要あり?
